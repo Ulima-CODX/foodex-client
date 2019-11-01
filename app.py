@@ -1,3 +1,4 @@
+import requests
 from flask import Flask, render_template
 app = Flask(__name__)
 
@@ -9,7 +10,9 @@ def home():
 
 @app.route('/restaurants')
 def listarrestaurants():
-    return render_template('listarrestaurantes.html')
+    lista = requests.get("www.foodex.com/api/restaurantes")
+    lista = list(lista.values())
+    return render_template('listarrestaurantes.html', lista=lista)
 
 
 @app.route('/restaurants/<restaurantid>')
@@ -19,7 +22,8 @@ def verrestaurant(restaurantid):
 
 @app.route('/restaurants/<restaurantid>/menu')
 def vermenu(restaurantid):
-    return render_template('vermenu.html')
+    menu = requests.get(f'www.foodex.com/api/restaurantes/{restaurantid}/menu')
+    return render_template('vermenu.html', menu=menu)
 
 
 @app.route('/restaurants/<restaurantid>/reserva')
