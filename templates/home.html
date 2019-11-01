@@ -1,0 +1,59 @@
+{%  extends 'masterpage.html' %}
+{%  block CSS %}
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+    <!-- Custom styles for this template -->
+    <link href="signin.css" rel="stylesheet">
+{% endblock %}
+
+{%  block content %}
+    <div class="card mb-4 shadow-sm" style="width: 25rem;margin-left: 1rem; margin-top: 7rem;">
+      <div class="card-header">
+        <h4 class="my-0 font-weight-normal">Donde quiere reservar?</h4>
+      </div>
+      <div class="card-body">
+          <form class="form-search">
+            <div class="form-group">
+                <label>Dónde</label>
+                <input type="text" class="form-control" id="exampleInputEmail1" placeholder="Ingrese un lugar">
+            </div>
+            <div class="form-row">
+            <div class="col">
+                <label>Día</label>
+                <input type="text" class="form-control" placeholder="Dia de la reserva">
+            </div>
+            <div class="col">
+                <label>Hora</label>
+                <input type="text" class="form-control" placeholder="Hora de la reserva">
+            </div>
+            </div>
+            <div class="form-group">
+                <label>Comensales</label>
+                <select id="inputState" class="form-control">
+                <option selected>Choose...</option>
+                <option>...</option>
+                </select>
+            </div>
+            <a href="/restaurants" class="btn btn-primary">Buscar</a>
+            </form>
+      </div>
+    </div>
+    <br>
+    <br>
+    <br>
+    <br>
+{% endblock %}
