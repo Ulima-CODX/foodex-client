@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - interactive - voxel painter</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				color: #444;
+			}
+			a {
+				color: #08f;
+			}
+            .ui {
+              position: absolute;
+            }
+            button{
+              margin: 20px;
+            }
+
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - voxel painter - webgl<br>
+			<strong>click</strong>: add voxel, <strong>shift + click</strong>: remove voxel
+		</div>
+        <button style="top:30px" id="povtop" class="ui">Top</button>
+        <button style="top:50px" id="povhigh" class="ui">High</button>
+        <button style="top:70px" id="povlow" class="ui">Low</button>
+        <!-- <script src="{{ url_for('static', filename='js/threejs/three.js') }}"></script> -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/108/three.min.js"></script>
+        <script src="{{ url_for('static', filename='js/threejs/controls/camera-controls.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/threejs/controls/DragControls.js') }}"></script>
+		<script>
+            CameraControls.install( { THREE: THREE } );
+			var camera, scene, renderer, controls, clock;
+			var intplane, mapplane,floorplane;
+            var mapsize, gridsize, ffeets, bradious, tradious,bheight, sheight;
+            var offset = new THREE.Vector3();
+            var STATE = {
+                NONE : -1,
+                TOP : 0,
+                HIGH : 1,
+                LOW : 2
+            };
+            var nameGeo, basesGeo, supportGeo, colorringGeo, miniimageGeo, statusringGeo;
+			var objects = [];
+            var selection = null, _state;
+
+			init();
+			animate();
+
+			function init() {
+                mapsize = 1024;
+                gridsize = 42;
+                ffeets = mapsize/gridsize;
+                bradious = ffeets/2;
+                tradious = ffeets + 10;
+                bheight = 10;
+                sheight = ffeets;
+                clock = new THREE.Clock();
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 3000 );
+				camera.up.set( 0, 0, 1 );
+				camera.position.set( 0, 0, 1200 );
+				camera.lookAt( 0, 0, 0 );
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xbab9b9 );
+
+
+                //mini object
+                var loader = new THREE.FontLoader();
+                loader.load( "{{ url_for('static', filename='fonts/helvetiker_regular.typeface.json') }}", function ( font ) {
+                    nameGeo = new THREE.TextGeometry( 'Mini', {
+                        font: font,
+                        size: 80,
+                        height: 5,
+                        curveSegments: 12,
+                        bevelEnabled: true,
+                        bevelThickness: 10,
+                        bevelSize: 8,
+                        bevelOffset: 0,
+                        bevelSegments: 5
+                    } );
+                } );
+                var loader = new THREE.TextureLoader();
+                var texture = loader.load("{{ url_for('static', filename='img/minis/Human - Paladin.png') }}")
+                basesGeo = new THREE.CylinderGeometry( bradious, bradious, 2, 32 );
+                supportGeo = new THREE.CylinderGeometry(bradious/2,bradious/2,2*ffeets,32);
+                colorringGeo = new THREE.RingGeometry(bradious/2,bradious/2 + bradious/4, 32);
+                miniimageGeo = new THREE.BoxGeometry(ffeets -4,ffeets + ffeets/2, 2);
+                statusringGeo = new THREE.TorusGeometry(bradious,1,32,32);
+                var material = new THREE.MeshLambertMaterial( {color: 0xffffff , side: THREE.DoubleSide, transparent: true, opacity: 0.3} );
+                var supportbase = new THREE.Mesh( basesGeo, material );
+                supportbase.up.set(0,0,1);
+                supportbase.position.set(0,0,1);
+                supportbase.name = 'support_base';
+                var support = new THREE.Mesh(supportGeo, material);
+                support.up.set(0,0,1);
+                support.position.set(0,2 + ffeets,0);
+                support.name = 'support';
+                material = new THREE.MeshLambertMaterial( {color: 0x000000, side: THREE.DoubleSide} );
+                var minibase = new THREE.Mesh( basesGeo, material );
+                minibase.up.set(0,0,1);
+                minibase.position.set(0,2 + 2*ffeets + 1,0);
+                minibase.name = 'mini_base';
+                material = new THREE.MeshLambertMaterial( {color: 0xff0000, side: THREE.DoubleSide} );
+                var colorring = new THREE.Mesh( colorringGeo, material );
+                colorring.up.set(0,0,1);
+                colorring.position.set(0,2 + 2*ffeets + 2.1,0);
+                colorring.rotateX(- Math.PI/2);
+                colorring.name = ''
+                material = [ new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} ),
+                    new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} ),
+                    new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} ),
+                    new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} ),
+                    new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} ),
+                    new THREE.MeshBasicMaterial( {color: 0xffffff, transparent: true, opacity: 1, map: texture} )];
+                var miniimage = new THREE.Mesh( miniimageGeo, material );
+                miniimage.up.set(0,0,1);
+                miniimage.position.set(0,2 + 2*ffeets + 2 + (1.5*ffeets)/2,0);
+                material = new THREE.MeshLambertMaterial( {color: 0xff0000, side: THREE.DoubleSide} );
+                var mininame = new THREE.Mesh( statusringGeo, material );
+                mininame.up.set(0,0,1);
+                mininame.position.set(0,2 + 2*ffeets + 2 + 1.5*ffeets - 4,0);
+                mininame.rotateX(- Math.PI/2);
+                var mini = new THREE.Group();
+                mini.add(supportbase);
+                mini.add(support);
+                mini.add(minibase);
+                mini.add(colorring);
+                mini.add(miniimage);
+                mini.add(mininame);
+                //mini.up.set(0,0,1);
+                mini.rotateX(Math.PI/2);
+                mini.userData = {height:4,feets:ffeets};
+                mini.position.set(-(mapsize/gridsize)/2,(mapsize/gridsize)/2,2);
+                mini.scale.set(3.5,3.5,3.5);
+                scene.add(mini);
+                objects.push(mini);
+
+				//var rollOverGeo = new THREE.BoxBufferGeometry( mapsize/gridsize, mapsize/gridsize, mapsize/gridsize );
+				//rollOverMaterial = new THREE.MeshLambertMaterial( { color: 0xff0000, side: THREE.DoubleSide} );
+				//rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+				//rollOverMesh.position.set(-(mapsize/gridsize)/2,(mapsize/gridsize)/2,(mapsize/gridsize)/2)
+                //rollOverMesh.name = 'red cube';
+				//rollOverMesh.userData = {height:mapsize/gridsize}
+				//scene.add( rollOverMesh );
+				//objects.push(rollOverMesh)
+
+				//rollOverMaterial = new THREE.MeshLambertMaterial( { color: 0x814c94, side: THREE.DoubleSide} );
+				//rollOverMesh1 = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+				//rollOverMesh1.position.set((mapsize/gridsize),(mapsize/gridsize),(mapsize/gridsize)/2)
+                //rollOverMesh1.name = 'green cube'
+				//scene.add( rollOverMesh1 );
+				//objects.push(rollOverMesh1)
+
+				// grid
+				var gridHelper = new THREE.GridHelper( mapsize, gridsize );
+				gridHelper.rotateX( - Math.PI / 2 );
+				gridHelper.position.set(0,0,-1)
+				scene.add( gridHelper );
+
+				var axesHelper = new THREE.AxesHelper( 1100 );
+                //scene.add( axesHelper );
+
+                var loader = new THREE.TextureLoader();
+                var texture = loader.load("{{ url_for('static', filename='img/maps/convmap.png') }}")
+				var geometry = new THREE.PlaneBufferGeometry( mapsize, mapsize );
+				floorplane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false, color: 0xdbdbdb } ) );
+				floorplane.name = 'floor plane';
+				floorplane.position.set(0,0,-2);
+				scene.add( floorplane );
+				mapplane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false, transparent: true, opacity: 1, map: texture } ) );
+				mapplane.name = 'map plane';
+                mapplane.position.set(0,0,0);
+				scene.add( mapplane );
+				intplane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false, color: 0xffffff } ) );
+				intplane.name = 'intersection plane';
+				intplane.position.set(0,0,(mapsize/gridsize)/2);
+				scene.add( intplane );
+
+				// lights
+				var ambientLight = new THREE.AmbientLight( 0x606060 );
+				scene.add( ambientLight );
+				var directionalLight = new THREE.DirectionalLight( 0xffffff );
+				directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+				scene.add( directionalLight );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true, stencil: false } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+                controls = new CameraControls( camera, renderer.domElement );
+                var  bb = new THREE.Box3(
+                                            new THREE.Vector3( -mapsize/4, -mapsize/4, -mapsize/4 ),
+                                            new THREE.Vector3( mapsize/4, mapsize/4, mapsize/4 )
+                                        );
+	            //controls.setBoundary( bb );
+				controls.rotateSpeed = 0.5;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 1.2;
+				controls.enableDolly = true; //Zoom
+				controls.enableTruck = true; //Truck
+				controls.enableRotate = false; //Rotate
+				controls.minDistance = (mapsize/gridsize);
+				controls.maxDistance = 2000;
+				controls.dynamicDampingFactor = 0.3;
+				_state = STATE.TOP;
+
+				var dragControls = new THREE.DragControls( objects, camera, renderer.domElement, intplane );
+				dragControls.addEventListener( 'dragstart', function () {
+				    controls.enabled = false;
+				} );
+				dragControls.addEventListener( 'dragend', function () {
+				    controls.enabled = true;
+				} );
+
+				//
+                var buttons = document.getElementsByTagName("button");
+                for (let i = 0; i < buttons.length; i++) {
+                  buttons[i].addEventListener("click", onButtonClick, false);
+                }
+				window.addEventListener( 'resize', onWindowResize, false );
+                render();
+			}
+
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+            function onButtonClick(event) {
+                if (event.target.tagName == 'BUTTON') {
+                    if (event.target.id == 'povtop') {
+                        controls.reset(true);
+                        controls.enableRotate = false;
+                        _state = STATE.TOP;
+                        console.log('Top');
+                    }
+                    if (event.target.id == 'povhigh'){
+                        if (_state == STATE.TOP) {
+                            controls.rotate( 0, 30 * THREE.Math.DEG2RAD, true );
+
+                        }
+                        else if (_state == STATE.LOW) {
+                            controls.rotate( 0, - 30 * THREE.Math.DEG2RAD, true );
+                        }
+                        controls.enableRotate = true;
+                        _state = STATE.HIGH;
+                        console.log('High');
+                    }
+                    if (event.target.id == 'povlow'){
+                        if (_state == STATE.TOP) {
+                            controls.rotate( 0, 60 * THREE.Math.DEG2RAD, true );
+                        }
+                        else if (_state == STATE.HIGH) {
+                            controls.rotate( 0, 30 * THREE.Math.DEG2RAD, true );
+                        }
+                        controls.enableRotate = true;
+                        _state = STATE.LOW;
+                        console.log('Low');
+                    }
+                }
+                render();
+            }
+
+            function animate() {
+			    var delta = clock.getDelta();
+	            controls.update( delta );
+				requestAnimationFrame( animate );
+				scene.updateMatrixWorld();
+                render();
+			}
+
+			function render() {
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+	</body>
+</html>
